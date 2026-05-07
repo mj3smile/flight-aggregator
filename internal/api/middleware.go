@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -38,9 +39,18 @@ func (rl *RateLimitMiddleware) getLimiter(ip string) ratelimiter.RateLimiter {
 	return lim
 }
 
+func (rl *RateLimitMiddleware) getClientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
 func (rl *RateLimitMiddleware) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		limiter := rl.getLimiter(r.RemoteAddr)
+		ip := rl.getClientIP(r)
+		limiter := rl.getLimiter(ip)
 
 		allowed, retryAfter := limiter.Allow()
 		if !allowed {
